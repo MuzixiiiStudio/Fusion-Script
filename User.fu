@@ -1,0 +1,6 @@
+{
+	Hotkeys {
+		ALT_V = "RunScript{ Name = 'Refresh_Loader_Duration', filename = 'C:\\\\ProgramData\\\\Blackmagic Design\\\\Fusion\\\\Scripts\\\\Comp\\\\Refresh_Loader_Duration.py' }",
+		Target = "FlowView",
+	},
+}

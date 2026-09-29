@@ -1,0 +1,15 @@
+{
+	Hotkeys {
+		Target = "FlowView",
+		ALT_C = "RunScript{ Name = 'Connect_Selected_Nodes', filename = 'C:\\\\ProgramData\\\\Blackmagic Design\\\\Fusion\\\\Scripts\\\\Comp\\\\Connect_Selected_Nodes.py' }"
+	},
+
+	Hotkeys {
+		Target = "FuFrame",
+		CONTROL_H = "App_CustomizeHotkeys"
+	},
+	Hotkeys {
+		Target = "FlowView",
+		ALT_V = "RunScript{ Name = 'Refresh_Loader_Duration', filename = 'C:\\\\ProgramData\\\\Blackmagic Design\\\\Fusion\\\\Scripts\\\\Comp\\\\Refresh_Loader_Duration.py' }"
+	},
+}
