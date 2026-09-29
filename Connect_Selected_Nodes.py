@@ -144,20 +144,34 @@ try:
                     disconnected = True
                     print(">< 斷開連接: {} --X--> {}".format(src_tool.Name, t_dst.Name))
 
-    # D. 如果有需要刪除的 Merge，先將連線拔除
+    # D. 如果有需要刪除的 Merge，先將連線拔除並刪除
     if merges_to_kill:
         for m in merges_to_kill:
+            m_name = m.Name
             try:
-                m.Background.ConnectTo()
-                m.Foreground.ConnectTo()
+                m.Delete()
+                print("[!] 已徹底清除 Merge [{}]".format(m_name))
             except Exception:
                 pass
         disconnected = True
 
-    # E. 若沒有任何斷開動作，代表彼此尚未連線 -> 執行智慧連線！
+    # E. 若沒有任何斷開動作，代表彼此尚未連線 -> 執行智慧連線與排版！
+    # E. 若沒有任何斷開動作，代表彼此尚未連線 -> 執行智慧連線與排版！
     if not disconnected:
-        # 依照 X 座標排序
-        tools.sort(key=lambda t: get_node_pos(t)[0])
+        # 計算節點在 X 與 Y 方向的跨度，判斷使用者是「水平排列」還是「垂直排列」
+        all_x = [get_node_pos(t)[0] for t in tools]
+        all_y = [get_node_pos(t)[1] for t in tools]
+        delta_x = max(all_x) - min(all_x)
+        delta_y = max(all_y) - min(all_y)
+
+        is_vertical = delta_y > delta_x
+
+        if is_vertical:
+            # 垂直排列：由上至下排序 (Y 由小到大)
+            tools.sort(key=lambda t: get_node_pos(t)[1])
+        else:
+            # 水平排列：由左至右排序 (X 由小到大)
+            tools.sort(key=lambda t: get_node_pos(t)[0])
 
         # 情況 1：直連效果節點 (例如 Loader -> Blur)
         connected_direct = False
@@ -177,45 +191,50 @@ try:
                 if main_in and src_out:
                     main_in.ConnectTo(src_out)
                     connected_direct = True
-                    print(f"✔ 直連成功：{tools[0].Name} ──> {tools[1].Name}")
+                    print(">< 直連成功: {} -> {}".format(tools[0].Name, tools[1].Name))
 
-        # 情況 2：生成節點 / 多節點交集 Merge 串接
+        # 情況 2：建立 Merge 依序合併並自動排版
         if not connected_direct:
             base_bg_tool = tools[0]
             fg_candidates = tools[1:]
 
             current_main_out = get_main_output(base_bg_tool)
-            base_pos = get_node_pos(base_bg_tool)
-            current_y = base_pos[1]
 
+            # 以最左/最上的節點作為基準座標
+            start_x = min(all_x)
+            start_y = min(all_y)
+
+            x_spacing = 2.0  # 橫向間距
+            y_spacing = 1.5  # 縱向間距
+
+            # 只要是垂直排列、或節點重疊，就強制將所有輸入節點橫向展開成一列
+            is_overlapping = any(get_node_pos(t) == (all_x[0], all_y[0]) for t in fg_candidates)
+            if is_vertical or is_overlapping:
+                for i, t in enumerate(tools):
+                    flow.SetPos(t, start_x + (i * x_spacing), start_y)
+
+            created_merges = []
             merge_count = 0
-            for fg_tool in fg_candidates:
+
+            # 依序產生 Merge 並排在對應輸入節點的下方第二排
+            for i, fg_tool in enumerate(fg_candidates):
                 fg_out = get_main_output(fg_tool)
                 if not fg_out:
                     continue
-                fg_pos = get_node_pos(fg_tool)
 
                 merge_tool = comp.AddTool("Merge")
-                # 放在交集處：X 對齊上方素材，Y 對齊主線
-                flow.SetPos(merge_tool, fg_pos[0], current_y)
+
+                # Merge X 座標跟隨目前 Foreground 節點的 X 座標，Y 座標整齊放在下方
+                current_fg_pos = get_node_pos(fg_tool)
+                flow.SetPos(merge_tool, current_fg_pos[0], start_y + y_spacing)
 
                 merge_tool.Background.ConnectTo(current_main_out)
                 merge_tool.Foreground.ConnectTo(fg_out)
 
                 current_main_out = merge_tool.FindMainOutput(1)
+                created_merges.append(merge_tool)
                 merge_count += 1
 
-            print(f"✔ 成功連線：已建立 {merge_count} 個 Merge。")
-
+            print(">> 成功連線: 已建立 {} 個 Merge".format(merge_count))
 finally:
     comp.Unlock()
-
-# ── 3. 解鎖後徹底刪除標記的 Merge 節點 ──
-if merges_to_kill:
-    for m in merges_to_kill:
-        m_name = m.Name
-        try:
-            m.Delete()
-            print(f"🗑 已徹底清除 Merge：{m_name}")
-        except Exception:
-            pass
