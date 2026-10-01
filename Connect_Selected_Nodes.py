@@ -193,30 +193,41 @@ try:
                     connected_direct = True
                     print(">< 直連成功: {} -> {}".format(tools[0].Name, tools[1].Name))
 
-        # 情況 2：建立 Merge 依序合併並自動排版
+        # 情況 2：建立 Merge 依序合併、智慧排版並將 Alpha Gain 設為 0
         if not connected_direct:
+            all_x = [get_node_pos(t)[0] for t in tools]
+            all_y = [get_node_pos(t)[1] for t in tools]
+            delta_x = max(all_x) - min(all_x)
+            delta_y = max(all_y) - min(all_y)
+
+            # 判斷是否為「垂直排列」或「重疊」
+            is_vertical_or_stacked = (delta_x < 0.5) or (delta_y > delta_x)
+
+            if is_vertical_or_stacked:
+                tools.sort(key=lambda t: get_node_pos(t)[1])
+            else:
+                tools.sort(key=lambda t: get_node_pos(t)[0])
+
             base_bg_tool = tools[0]
             fg_candidates = tools[1:]
-
             current_main_out = get_main_output(base_bg_tool)
 
-            # 以最左/最上的節點作為基準座標
-            start_x = min(all_x)
-            start_y = min(all_y)
+            bg_x, bg_y = get_node_pos(base_bg_tool)
+            x_spacing = 2.0  # 橫向展開間距
+            y_spacing = 1.5  # 縱向展開間距
 
-            x_spacing = 2.0  # 橫向間距
-            y_spacing = 1.5  # 縱向間距
-
-            # 只要是垂直排列、或節點重疊，就強制將所有輸入節點橫向展開成一列
-            is_overlapping = any(get_node_pos(t) == (all_x[0], all_y[0]) for t in fg_candidates)
-            if is_vertical or is_overlapping:
+            # 垂直/重疊時橫向整齊展開成第一排；否則維持在交集高度
+            if is_vertical_or_stacked:
                 for i, t in enumerate(tools):
-                    flow.SetPos(t, start_x + (i * x_spacing), start_y)
+                    flow.SetPos(t, bg_x + (i * x_spacing), bg_y)
+                merge_y = bg_y + y_spacing
+            else:
+                merge_y = bg_y
 
             created_merges = []
             merge_count = 0
 
-            # 依序產生 Merge 並排在對應輸入節點的下方第二排
+            # 依序產生 Merge 並設定參數
             for i, fg_tool in enumerate(fg_candidates):
                 fg_out = get_main_output(fg_tool)
                 if not fg_out:
@@ -224,10 +235,27 @@ try:
 
                 merge_tool = comp.AddTool("Merge")
 
-                # Merge X 座標跟隨目前 Foreground 節點的 X 座標，Y 座標整齊放在下方
-                current_fg_pos = get_node_pos(fg_tool)
-                flow.SetPos(merge_tool, current_fg_pos[0], start_y + y_spacing)
+                # 1. 設置座標：X 對齊前景節點，Y 對齊主幹高度
+                fg_x, fg_y = get_node_pos(fg_tool)
+                flow.SetPos(merge_tool, fg_x, merge_y)
 
+                # 2. 自動將 Alpha Gain 設為 0
+                inputs = merge_tool.GetInputList() or {}
+                gain_input = None
+                for inp in inputs.values():
+                    if inp.GetAttrs("INPS_ID") == "Gain":
+                        gain_input = inp
+                        break
+
+                if gain_input:
+                    gain_input[comp.CurrentTime] = 0.0
+                else:
+                    try:
+                        merge_tool.Gain[comp.CurrentTime] = 0.0
+                    except Exception:
+                        pass
+
+                # 3. 連接節點
                 merge_tool.Background.ConnectTo(current_main_out)
                 merge_tool.Foreground.ConnectTo(fg_out)
 
@@ -235,6 +263,7 @@ try:
                 created_merges.append(merge_tool)
                 merge_count += 1
 
-            print(">> 成功連線: 已建立 {} 個 Merge".format(merge_count))
+            print(">> 成功連線: 已建立 {} 個 Merge (Alpha Gain 已設為 0)".format(merge_count))
+
 finally:
     comp.Unlock()
