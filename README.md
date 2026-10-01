@@ -1,11 +1,11 @@
-=====================================================
-Fusion 輔助自動化腳本工具包 安裝與使用說明 260929
-=====================================================
+
+Fusion 輔助自動化腳本工具包 安裝與使用說明 261001
+
 
 【腳本工具清單】
 1. Connect_Selected_Nodes.py   : 多節點智慧依序合併連線 (快捷鍵: Alt + C)
 2. Refresh_Loader_Duration.py  : 一鍵自動更新 Loader 序列圖長度 (快捷鍵: Alt + V)
-
+3. Set_Merge_AlphaGain_Zero.py  : 多merge設定Alpha gain(無快捷)
 
 【事前環境確認】
 若你的 Fusion 為舊版本（如 Fusion 16 / 17 / 早期 18），系統僅綁定 Python 3.6。
