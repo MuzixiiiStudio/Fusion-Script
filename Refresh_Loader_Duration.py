@@ -165,14 +165,38 @@ try:
         gin = loader.GetAttrs("TOOLNT_ClipGlobalIn")
         if gin is None:
             gin = loader.GlobalIn[comp.CurrentTime]
+       # 1. 計算總長度
+        trim_out = seq_len - 1
 
-        loader.ClipTimeStart = first_frame
-        loader.ClipTimeEnd = last_frame
-        loader.HoldFirstFrame = 0
-        loader.HoldLastFrame = 0
+        # 2. 強制重置 Loader 素材長度範圍 (透過 Clip 重新載入序列)
+        try:
+            # 重新賦予 Clip 完整路徑，強制觸發 Fusion 的序列剖析器
+            loader.Clip[comp.CurrentTime] = target_clip
+        except Exception:
+            pass
 
-        loader.GlobalIn[comp.CurrentTime] = gin
-        loader.GlobalOut[comp.CurrentTime] = gin + seq_len - 1
+        # 3. 設定 ClipTimeEnd 與清除 Hold (關鍵：直接指定為非動畫參數或帶時間索引)
+        try:
+            loader.HoldLastFrame[comp.CurrentTime] = 0
+            loader.HoldFirstFrame[comp.CurrentTime] = 0
+        except Exception:
+            pass
+
+        # 4. 同步更新內部屬性與時間軸範圍
+        loader.SetAttrs({
+            "TOOLNT_ClipGlobalIn": gin,
+            "TOOLNT_ClipGlobalOut": gin + trim_out,
+            "TOOLNT_ClipTrimIn": 0,
+            "TOOLNT_ClipTrimOut": trim_out,
+        })
+
+        try:
+            loader.GlobalIn[comp.CurrentTime] = gin
+            loader.GlobalOut[comp.CurrentTime] = gin + trim_out
+            loader.ClipTimeEnd[comp.CurrentTime] = trim_out
+        except Exception:
+            pass
+        
 
         # --- 取得原本素材的檔案名稱 ---
         file_base_name = os.path.basename(real_path)
