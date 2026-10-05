@@ -1,7 +1,7 @@
 {
 	Hotkeys {
 		Target = "FlowView",
-		ALT_C = "RunScript{ Name = 'Connect_Selected_Nodes', filename = 'C:\\\\ProgramData\\\\Blackmagic Design\\\\Fusion\\\\Scripts\\\\Comp\\\\Connect_Selected_Nodes.py' }"
+		ALT_C = "RunScript{ Name = 'Connect_Selected_Nodes', filename = 'N:\\\\Temp\\\\YITING\\\\FUSION SCRIPT\\\\Comp\\\\Connect_Selected_Nodes.py' }"
 	},
 
 	Hotkeys {
@@ -10,6 +10,6 @@
 	},
 	Hotkeys {
 		Target = "FlowView",
-		ALT_V = "RunScript{ Name = 'Refresh_Loader_Duration', filename = 'C:\\\\ProgramData\\\\Blackmagic Design\\\\Fusion\\\\Scripts\\\\Comp\\\\Refresh_Loader_Duration.py' }"
+		ALT_V = "RunScript{ Name = 'Refresh_Loader_Duration', filename = 'N:\\\\Temp\\\\YITING\\\\FUSION SCRIPT\\\\Comp\\\\Refresh_Loader_Duration.py' }"
 	},
 }
