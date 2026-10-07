@@ -1,4 +1,4 @@
-# Fusion 輔助自動化腳本工具包 安裝與使用說明 (261005 更新版)
+## Fusion 輔助自動化腳本工具包 安裝與使用說明 (261007 更新版)
 
 【腳本工具清單】
 1. Connect_Selected_Nodes.py   : 多節點智慧依序合併連線 (快捷鍵: Alt + C)
@@ -17,7 +17,7 @@
 
 1. 集中管理與放置 Python 腳本檔案 (NAS 共用目錄)
    本工具包腳本放置於伺服器共用路徑：
-   `N:\Temp\YITING\FUSION SCRIPT\Comp`
+   `Nas:\yourpath\Comp`
 
    包含以下腳本：
    - `Connect_Selected_Nodes.py`
