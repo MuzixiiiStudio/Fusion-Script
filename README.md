@@ -1,4 +1,4 @@
-## Fusion 輔助自動化腳本工具包 安裝與使用說明 (261007 更新版)
+## Fusion 輔助自動化腳本工具包 安裝與使用說明 (261019 更新版)
 
 【腳本工具清單】
 1. Connect_Selected_Nodes.py   : 多節點智慧依序合併連線 (快捷鍵: Alt + C)
@@ -33,7 +33,15 @@
    4. 點選右下角 `Save` 儲存設定。
    *(注意：請將本機 `C:\ProgramData\Blackmagic Design\Fusion\Scripts\Comp\` 內的同名舊腳本刪除，避免版本衝突)*
 
-2. 覆蓋快捷鍵與設定檔 (User.fu & hotkeys)
+2. 設定快捷鍵 (Alt + C / Alt + V)
+   *【建議】點兩下自動設定：*
+   * 請先【完全關閉 Fusion】軟體（電腦需連上 N 槽）。
+   * 點兩下工具包裡的 `修復Fusion快捷鍵.bat`（NAS：`N:\Temp\YITING\FUSION SCRIPT\`）。
+   * 工具會自動找到你自己的 Fusion 設定資料夾（不同 Windows 使用者名稱也適用），把快捷鍵指向 N 槽腳本，
+     並保留你自己設定的其他快捷鍵；修改前會先備份成 `*.bak-日期時間`。
+   * 看到 `[完成]` 或 `[OK]` 後，重新啟動 Fusion 即可使用快捷鍵。
+
+   *手動方式（會覆蓋你在 Fusion 裡自訂過的快捷鍵）：*
    * 請先【完全關閉 Fusion】軟體。
    * 按下鍵盤 Win + R，貼入以下路徑按 Enter 開啟資料夾：
      `%APPDATA%\Blackmagic Design\Fusion\Profiles\Default\`
@@ -41,3 +49,12 @@
      - `User.fu`
      - `hotkeys.fu`
    * 重新啟動 Fusion 即可直接使用快捷鍵。
+
+---
+
+【常見問題】
+
+* Alt + C 可以用，但 Alt + V 沒反應？
+  261007 版的 `User.fu` 把 Alt + V 指向本機 `C:\ProgramData\...\Scripts\Comp\`，
+  而安裝步驟 1 會刪除那裡的舊腳本，所以 Alt + V 會找不到檔案。
+  關閉 Fusion 後點兩下 `修復Fusion快捷鍵.bat`，再重新開啟 Fusion 即可。

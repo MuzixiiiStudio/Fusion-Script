@@ -1,15 +1,11 @@
 {
 	Hotkeys {
 		Target = "FlowView",
-		ALT_C = "RunScript{ Name = 'Connect_Selected_Nodes', filename = 'N:\\\\Temp\\\\YITING\\\\FUSION SCRIPT\\\\Comp\\\\Connect_Selected_Nodes.py' }"
+		ALT_C = "RunScript{ Name = 'Connect_Selected_Nodes', filename = 'N:\\\\Temp\\\\YITING\\\\FUSION SCRIPT\\\\Comp\\\\Connect_Selected_Nodes.py' }",
+		ALT_V = "RunScript{ Name = 'Refresh_Loader_Duration', filename = 'N:\\\\Temp\\\\YITING\\\\FUSION SCRIPT\\\\Comp\\\\Refresh_Loader_Duration.py' }",
 	},
-
 	Hotkeys {
 		Target = "FuFrame",
-		CONTROL_H = "App_CustomizeHotkeys"
-	},
-	Hotkeys {
-		Target = "FlowView",
-		ALT_V = "RunScript{ Name = 'Refresh_Loader_Duration', filename = 'N:\\\\Temp\\\\YITING\\\\FUSION SCRIPT\\\\Comp\\\\Refresh_Loader_Duration.py' }"
+		CONTROL_H = "App_CustomizeHotkeys",
 	},
 }
