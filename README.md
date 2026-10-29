@@ -1,9 +1,12 @@
-## Fusion 輔助自動化腳本工具包 安裝與使用說明 (261019 更新版)
+## Fusion 輔助自動化腳本工具包 安裝與使用說明 (261029 更新版)
 
 【腳本工具清單】
 1. Connect_Selected_Nodes.py   : 多節點智慧依序合併連線 (快捷鍵: Alt + C)
    - 支援直排/重疊自動橫向攤開，以及橫排節點垂直落線與背景主幹的正交交集佈局
    - 自動將新建立的 Merge 節點 Alpha Gain 設為 0
+   - 選取的節點已經連在一起時，再按一次會拆開：只拆掉選取節點之間的 Merge，
+     有接到其他（未選取）節點的 Merge 會保留，原本接在下游的節點會自動接回主幹
+   - 整個動作可以用 Ctrl + Z 一次復原
 2. Refresh_Loader_Duration.py  : 一鍵自動更新 Loader 序列圖長度 (快捷鍵: Alt + V)
    - 自動修正 Trim (0 起算至最後幀)，強制將 Hold First/Last Frame 歸零，並同步校正 Global In/Out
 3. Set_Merge_AlphaGain_Zero.py : 多 Merge 節點批次將 Alpha Gain 設為 0 (無快捷鍵)
@@ -58,3 +61,7 @@
   261007 版的 `User.fu` 把 Alt + V 指向本機 `C:\ProgramData\...\Scripts\Comp\`，
   而安裝步驟 1 會刪除那裡的舊腳本，所以 Alt + V 會找不到檔案。
   關閉 Fusion 後點兩下 `修復Fusion快捷鍵.bat`，再重新開啟 Fusion 即可。
+
+* 按 Alt + C 想連線，卻把旁邊原本的 Merge 拆掉了？
+  261019 以前的版本只要選到的節點有接進任何 Merge，就會把它下游的 Merge 全部刪掉，而且不會建立新連線。
+  261029 版已修正，只會拆掉選取節點之間的 Merge。腳本直接從 N 槽讀取，更新後不用重新安裝。

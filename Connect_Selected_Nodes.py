@@ -89,74 +89,117 @@ def get_main_output(t):
 
 
 tool_names = [t.Name for t in tools]
-merges_to_kill = []
-killed_names = []
+selected_names = set(tool_names)
 
 
-def add_merge_to_kill(m_tool):
-    if m_tool and m_tool.Name not in killed_names:
-        killed_names.append(m_tool.Name)
-        merges_to_kill.append(m_tool)
+def is_merge(t):
+    return str(t.GetAttrs("TOOLS_RegID")) == "Merge"
+
+
+def connected_sources(t):
+    # 接到 t 任一輸入的上游節點
+    srcs = []
+    for inp in (t.GetInputList() or {}).values():
+        out = inp.GetConnectedOutput()
+        if out:
+            src = out.GetTool()
+            if src:
+                srcs.append(src)
+    return srcs
+
+
+def downstream_inputs(t):
+    out = get_main_output(t)
+    if not out:
+        return []
+    return list((out.GetConnectedInputs() or {}).values())
 
 
 disconnected = False
 
-# ── 2. 核心邏輯：鎖定畫布進行分析與操作 ──
+# ── 2. 核心邏輯：鎖定畫布進行分析與操作（整個動作可用 Ctrl+Z 一次復原）──
+comp.StartUndo("Connect Selected Nodes")
 comp.Lock()
 try:
-    # A. 深度追蹤下游 Merge 節點
+    # A. 收集選取節點下游與選取範圍內的 Merge
+    candidates = {}
     queue = list(tools)
-    visited_names = set(tool_names)
-
     while queue:
         current_node = queue.pop(0)
-        curr_out = get_main_output(current_node)
-        if not curr_out:
-            continue
-
-        connected_inputs = curr_out.GetConnectedInputs() or {}
-        for inp in connected_inputs.values():
+        for inp in downstream_inputs(current_node):
             down_tool = inp.GetTool()
-            if down_tool:
-                reg_id = str(down_tool.GetAttrs("TOOLS_RegID"))
-                if "Merge" in reg_id:
-                    add_merge_to_kill(down_tool)
-                    if down_tool.Name not in visited_names:
-                        visited_names.add(down_tool.Name)
-                        queue.append(down_tool)
-
-    # B. 若選取範圍直接包含 Merge
+            if down_tool and is_merge(down_tool) and down_tool.Name not in candidates:
+                candidates[down_tool.Name] = down_tool
+                queue.append(down_tool)
     for t in tools:
-        if "Merge" in str(t.GetAttrs("TOOLS_RegID")):
-            add_merge_to_kill(t)
+        if is_merge(t):
+            candidates[t.Name] = t
 
-    # C. 檢查直連節點
+    # B. 只有「所有輸入都來自選取節點（或其他要拆的 Merge）」的 Merge 才是選取節點之間的連線
+    #    有接到未選取節點的 Merge（旁邊原本的合成）一律保留
+    owned = {}
+    changed = True
+    while changed:
+        changed = False
+        for name, m in candidates.items():
+            if name in owned:
+                continue
+            srcs = connected_sources(m)
+            if srcs and all(s.Name in selected_names or s.Name in owned for s in srcs):
+                owned[name] = m
+                changed = True
+
+    def chain_base_output(m):
+        # 沿 Background 往上找，跳過要拆掉的 Merge，回傳主幹的輸出
+        visited = set()
+        while m.Name in owned and m.Name not in visited:
+            visited.add(m.Name)
+            bg_in = m.FindMainInput(1)
+            out = bg_in.GetConnectedOutput() if bg_in else None
+            if not out:
+                return None
+            src = out.GetTool()
+            if src.Name not in owned:
+                return out
+            m = src
+        return None
+
+    # C. 要拆的 Merge 下游若接著未選取的節點，改接回主幹，避免下游斷線
+    for m in owned.values():
+        for inp in downstream_inputs(m):
+            down_tool = inp.GetTool()
+            if not down_tool or down_tool.Name in owned or down_tool.Name in selected_names:
+                continue
+            base_out = chain_base_output(m)
+            if base_out:
+                inp.ConnectTo(base_out)
+                print(">< 下游改接回主幹: {} -> {}".format(base_out.GetTool().Name, down_tool.Name))
+
+    # D. 檢查選取節點之間的直連
     for t_dst in tools:
-        if "Merge" in str(t_dst.GetAttrs("TOOLS_RegID")):
+        if t_dst.Name in owned:
             continue
         inputs = t_dst.GetInputList() or {}
         for inp in inputs.values():
             out = inp.GetConnectedOutput()
             if out:
                 src_tool = out.GetTool()
-                if src_tool and src_tool.Name in tool_names:
+                if src_tool and src_tool.Name in selected_names:
                     inp.ConnectTo()
                     disconnected = True
                     print(">< 斷開連接: {} --X--> {}".format(src_tool.Name, t_dst.Name))
 
-    # D. 如果有需要刪除的 Merge，先將連線拔除並刪除
-    if merges_to_kill:
-        for m in merges_to_kill:
-            m_name = m.Name
-            try:
-                m.Delete()
-                print("[!] 已徹底清除 Merge [{}]".format(m_name))
-            except Exception:
-                pass
+    # E. 刪除選取節點之間的 Merge
+    for m in owned.values():
+        m_name = m.Name
+        try:
+            m.Delete()
+            print("[!] 已清除 Merge [{}]".format(m_name))
+        except Exception:
+            pass
         disconnected = True
 
-    # E. 若沒有任何斷開動作，代表彼此尚未連線 -> 執行智慧連線與排版！
-    # E. 若沒有任何斷開動作，代表彼此尚未連線 -> 執行智慧連線與排版！
+    # F. 若沒有任何斷開動作，代表彼此尚未連線 -> 執行智慧連線與排版！
     if not disconnected:
         # 計算節點在 X 與 Y 方向的跨度，判斷使用者是「水平排列」還是「垂直排列」
         all_x = [get_node_pos(t)[0] for t in tools]
@@ -267,3 +310,4 @@ try:
 
 finally:
     comp.Unlock()
+    comp.EndUndo(True)
