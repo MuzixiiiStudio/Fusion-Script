@@ -108,17 +108,44 @@ def split_clip(clip):
     return clip[: idx + 1], clip[idx + 1 :]
 
 
+SEQ_RE = re.compile(r"^(.*?)([-_.]?)(\d+)(\.[a-zA-Z0-9]+)$")
+
+
+def sequence_name(fname):
+    # 序列名稱：去掉幀號與副檔名（單張圖就是整個檔名）
+    m = SEQ_RE.search(fname)
+    return m.group(1) + m.group(2) if m else fname
+
+
 def list_sequences(dir_path, ext):
     # 資料夾內同副檔名的序列：{序列名稱: 第一格檔名}
     seqs = {}
     for fname in os.listdir(dir_path):
         if not fname.lower().endswith(ext.lower()):
             continue
-        m = re.search(r"^(.*?)([-_.]?)(\d+)(\.[a-zA-Z0-9]+)$", fname)
-        key, frame = (m.group(1) + m.group(2), int(m.group(3))) if m else (fname, 0)
+        m = SEQ_RE.search(fname)
+        frame = int(m.group(3)) if m else 0
+        key = sequence_name(fname)
         if key not in seqs or frame < seqs[key][0]:
             seqs[key] = (frame, fname)
     return {k: v[1] for k, v in seqs.items()}
+
+
+def find_same_sequence(root, old_file, max_depth=2):
+    # 在 root 與底下 max_depth 層子資料夾找同名序列：[(相對資料夾, 第一格檔名)]
+    ext = os.path.splitext(old_file)[1]
+    name = sequence_name(old_file).lower()
+    found = []
+    for dirpath, dirnames, _ in os.walk(root):
+        rel = os.path.relpath(dirpath, root)
+        depth = 0 if rel == "." else rel.count(os.sep) + 1
+        if depth >= max_depth:
+            dirnames[:] = []
+        dirnames.sort()
+        for key, first in list_sequences(dirpath, ext).items():
+            if key.lower() == name:
+                found.append(("" if rel == "." else rel, first))
+    return found
 
 
 def resolve_swap(raw_clip):
@@ -126,33 +153,58 @@ def resolve_swap(raw_clip):
     whole = re.sub(re.escape(find_str), lambda m: replace_str, raw_clip, flags=re.IGNORECASE)
     new_dir, new_file = split_clip(whole)
     old_dir, old_file = split_clip(raw_clip)
+    ext = os.path.splitext(old_file)[1]
     real_dir = os.path.dirname(comp.MapPath(whole))
-
-    if not os.path.exists(real_dir):
-        return None, f"找不到資料夾 {real_dir}"
+    dir_exists = os.path.isdir(real_dir)
+    dir_changed = new_dir.lower() != old_dir.lower()
 
     # 1. 整條路徑（含檔名）替換後的檔案存在
-    if get_sequence_bounds(comp.MapPath(whole))[0] is not None:
+    if dir_exists and get_sequence_bounds(comp.MapPath(whole))[0] is not None:
         return whole, None
 
-    # 資料夾沒變時，下面的方式只會找回舊素材
-    if new_dir.lower() == old_dir.lower():
-        return None, f"資料夾內找不到 {new_file}"
-
     # 2. 資料夾換了，檔名維持原本的名稱
-    keep_name = new_dir + old_file
-    if get_sequence_bounds(comp.MapPath(keep_name))[0] is not None:
-        return keep_name, None
+    if dir_exists and dir_changed:
+        keep_name = new_dir + old_file
+        if get_sequence_bounds(comp.MapPath(keep_name))[0] is not None:
+            return keep_name, None
 
-    # 3. 新資料夾裡只有一組序列，就用那一組
-    ext = os.path.splitext(old_file)[1]
-    seqs = list_sequences(real_dir, ext)
-    if len(seqs) == 1:
-        return new_dir + list(seqs.values())[0], None
-    if not seqs:
-        return None, f"{real_dir} 內沒有 {ext} 檔案"
-    names = "、".join(sorted(seqs.values())[:5])
-    return None, f"{real_dir} 內有 {len(seqs)} 組序列，無法判斷要用哪一組（{names}）"
+    # 3. 「替換為新文字」是現有資料夾的完整路徑時，到那裡（含兩層子資料夾）找同名序列
+    target_root = comp.MapPath(replace_str) if replace_str else ""
+    if not (os.path.isabs(target_root) and os.path.isdir(target_root)):
+        target_root = None
+    if target_root:
+        matches = find_same_sequence(target_root, old_file)
+        if len(matches) == 1:
+            rel, first = matches[0]
+            return os.path.join(replace_str, rel, first) if rel else os.path.join(replace_str, first), None
+        if len(matches) > 1:
+            names = "、".join(os.path.join(r, f) for r, f in matches[:5])
+            return None, f"{target_root} 內有 {len(matches)} 組同名序列，無法判斷要用哪一組（{names}）"
+
+    # 4. 新資料夾裡只有一組同副檔名的序列，就用那一組（資料夾沒換時只會找回舊素材，所以跳過）
+    candidates = []
+    if dir_exists and dir_changed:
+        candidates.append((new_dir, real_dir))
+    if target_root and os.path.normcase(os.path.normpath(target_root)) != os.path.normcase(os.path.normpath(real_dir)):
+        candidates.append((os.path.join(replace_str, ""), target_root))
+    for clip_dir, scan_dir in candidates:
+        seqs = list_sequences(scan_dir, ext)
+        if len(seqs) == 1:
+            return clip_dir + list(seqs.values())[0], None
+
+    # 失敗原因
+    if candidates:
+        scan_dir = candidates[0][1]
+        seqs = list_sequences(scan_dir, ext)
+        if seqs:
+            names = "、".join(sorted(seqs.values())[:5])
+            return None, f"{scan_dir} 內有 {len(seqs)} 組序列，無法判斷要用哪一組（{names}）"
+        if target_root:
+            return None, f"{target_root}（含兩層子資料夾）內找不到 {sequence_name(old_file)}{ext}，也沒有可直接使用的 {ext} 序列"
+        return None, f"{scan_dir} 內沒有 {ext} 檔案"
+    if dir_exists:
+        return None, f"資料夾內找不到 {new_file}"
+    return None, f"找不到資料夾 {real_dir}"
 
 
 # ----------------------------------------------------------------------
