@@ -236,6 +236,8 @@ if not loaders:
     )
     exit()
 
+# 整個動作可用 Ctrl+Z 一次復原
+comp.StartUndo("Refresh Loader Duration")
 comp.Lock()
 count = 0
 swapped_count = 0
@@ -338,6 +340,7 @@ try:
         count += 1
 finally:
     comp.Unlock()
+    comp.EndUndo(True)
 
 # ----------------------------------------------------------------------
 # 4. 結果通知框 (顯示原本檔名)
